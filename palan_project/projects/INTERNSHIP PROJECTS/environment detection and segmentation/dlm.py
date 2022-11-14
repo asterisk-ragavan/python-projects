@@ -1,18 +1,12 @@
 # Tensorflow
 import tensorflow as tf
-import os
 import tarfile
 import numpy as np
 from PIL import Image
 import cv2 as cv
-
-print(tf.__version__)
-
-# Comment this out if you want to see Deprecation warnings
-import warnings
-
-warnings.simplefilter("ignore", DeprecationWarning)
-
+from matplotlib import gridspec
+from matplotlib import pyplot as plt
+import os
 
 class DeepLabModel(object):
     """Class to load deeplab model and run inference."""
@@ -51,3 +45,80 @@ class DeepLabModel(object):
             seg_map = np.expand_dims(seg_map, -1)  # need an extra dimension for cv.resize
         seg_map = cv.resize(seg_map, (width, height), interpolation=cv.INTER_NEAREST)
         return seg_map
+
+def create_label_colormap():
+    colormap = np.array([
+        [128,  64, 128],
+        [244,  35, 232],
+        [ 70,  70,  70],
+        [102, 102, 156],
+        [190, 153, 153],
+        [153, 153, 153],
+        [250, 170,  30],
+        [220, 220,   0],
+        [107, 142,  35],
+        [152, 251, 152],
+        [ 70, 130, 180],
+        [220,  20,  60],
+        [255,   0,   0],
+        [  0,   0, 142],
+        [  0,   0,  70],
+        [  0,  60, 100],
+        [  0,  80, 100],
+        [  0,   0, 230],
+        [119,  11,  32],
+        [  0,   0,   0]], dtype=np.uint8)
+    return colormap
+
+
+def label_to_color_image(label):
+    if label.ndim != 2:
+        raise ValueError('Expect 2-D input label')
+
+    colormap = create_label_colormap()
+
+    if np.max(label) >= len(colormap):
+        raise ValueError('label value too large.')
+
+    return colormap[label]
+
+
+def vis_segmentation(image, seg_map):
+    """Visualizes input image, segmentation map and overlay view."""
+    plt.figure(figsize=(20, 4))
+    grid_spec = gridspec.GridSpec(1, 4, width_ratios=[6, 6, 6, 1])
+
+    plt.subplot(grid_spec[0])
+    plt.imshow(image)
+    plt.axis('off')
+    plt.title('input image')
+
+    plt.subplot(grid_spec[1])
+    seg_image = label_to_color_image(seg_map).astype(np.uint8)
+    plt.imshow(seg_image)
+    plt.axis('off')
+    plt.title('segmentation map')
+
+    plt.subplot(grid_spec[2])
+    plt.imshow(image)
+    plt.imshow(seg_image, alpha=0.7)
+    plt.axis('off')
+    plt.title('segmentation overlay')
+
+    unique_labels = np.unique(seg_map)
+    ax = plt.subplot(grid_spec[3])
+    plt.imshow(FULL_COLOR_MAP[unique_labels].astype(np.uint8), interpolation='nearest')
+    ax.yaxis.tick_right()
+    plt.yticks(range(len(unique_labels)), LABEL_NAMES[unique_labels])
+    plt.xticks([], [])
+    ax.tick_params(width=0.0)
+    plt.grid('off')
+    plt.show()
+
+LABEL_NAMES = np.asarray([
+    'road', 'sidewalk', 'building', 'wall', 'fence', 'pole', 'traffic light',
+    'traffic sign', 'vegetation', 'terrain', 'sky', 'person', 'rider', 'car', 'truck',
+    'bus', 'train', 'motorcycle', 'bicycle', 'void'])
+
+FULL_LABEL_MAP = np.arange(len(LABEL_NAMES)).reshape(len(LABEL_NAMES), 1)
+FULL_COLOR_MAP = label_to_color_image(FULL_LABEL_MAP)
