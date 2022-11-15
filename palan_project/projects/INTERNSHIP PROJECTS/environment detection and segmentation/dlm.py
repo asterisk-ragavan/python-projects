@@ -1,4 +1,3 @@
-# Tensorflow
 import tensorflow as tf
 import tarfile
 import numpy as np
@@ -7,6 +6,7 @@ import cv2 as cv
 from matplotlib import gridspec
 from matplotlib import pyplot as plt
 import os
+from sklearn.metrics import confusion_matrix
 
 class DeepLabModel(object):
     """Class to load deeplab model and run inference."""
@@ -71,6 +71,23 @@ def create_label_colormap():
     return colormap
 
 
+def evaluate_single(seg_map, ground_truth):
+    """Evaluate a single frame with the MODEL loaded."""
+    # merge label due to different annotation scheme
+    seg_map[np.logical_or(seg_map == 14, seg_map == 15)] = 13
+    seg_map[np.logical_or(seg_map == 3, seg_map == 4)] = 2
+    seg_map[seg_map == 12] = 11
+
+    # calculate accuracy on valid area
+    acc = np.sum(seg_map[ground_truth != 19] == ground_truth[ground_truth != 19]) / np.sum(ground_truth != 19)
+
+    # select valid labels for evaluation
+    cm = confusion_matrix(ground_truth[ground_truth != 19], seg_map[ground_truth != 19],
+                          labels=np.array([0, 1, 2, 5, 6, 7, 8, 9, 11, 13]))
+    intersection = np.diag(cm)
+    union = np.sum(cm, 0) + np.sum(cm, 1) - np.diag(cm)
+    return acc, intersection, union
+
 def label_to_color_image(label):
     if label.ndim != 2:
         raise ValueError('Expect 2-D input label')
@@ -122,3 +139,19 @@ LABEL_NAMES = np.asarray([
 
 FULL_LABEL_MAP = np.arange(len(LABEL_NAMES)).reshape(len(LABEL_NAMES), 1)
 FULL_COLOR_MAP = label_to_color_image(FULL_LABEL_MAP)
+
+class DriveSeg(object):
+    """Class to load MIT DriveSeg Dataset."""
+
+    def __init__(self, tarball_path):
+        self.tar_file = tarfile.open(tarball_path)
+        self.tar_info = self.tar_file.getmembers()
+
+    def fetch(self, index):
+        tar_info = self.tar_info[index + 1]  # exclude index 0 which is the parent directory
+        file_handle = self.tar_file.extractfile(tar_info)
+        gt = np.fromstring(file_handle.read(), np.uint8)
+        gt = cv.imdecode(gt, cv.IMREAD_COLOR)
+        gt = gt[:, :, 0]  # select a single channel from the 3-channel image
+        gt[gt == 255] = 19  # void class, does not count for accuracy
+        return gt
