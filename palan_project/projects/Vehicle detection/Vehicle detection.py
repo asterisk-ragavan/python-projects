@@ -27,3 +27,27 @@ def capturescreen():
     cv2.destroyAllWindows()
 
 capturescreen()
+
+
+
+
+
+
+
+
+
+
+
+kpi = [(1,10,19),(2,11,20),(3,12,21),(4,13,22),(5,14,23),(6,15,24),(7,16,25),(8,17,26),(9,18)]
+alp = 'abcdefghijklmnopqrstuvwxyz'
+text = "sak"
+sum =0
+for i in text:
+    for l1 in kpi:
+        l2c=1
+        for l2 in l1:
+            if i == alp[l2-1]:
+                sum = sum + l2c
+            l2c=l2c+1
+        l2c=1
+print(sum)
